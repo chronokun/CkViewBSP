@@ -39,7 +39,7 @@ public:
 	static CEngineCore& GetInstance();
 	~CEngineCore();
 	const bool Initialize();
-	const int Start(const HINSTANCE _khInstance);
+	const int Start(const HINSTANCE _khInstance, const char* _kpCmdLine);
 	void Pause();
 	void Unpause();
 	const float Update(float _fStartTime);

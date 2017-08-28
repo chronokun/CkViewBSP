@@ -36,7 +36,7 @@ CEngineCore::~CEngineCore()
 	delete this->m_pInput;
 }
 
-const int CEngineCore::Start(const HINSTANCE _khInstance)
+const int CEngineCore::Start(const HINSTANCE _khInstance, const char* _kpCmdLine)
 {
 	MSG msg;
 	bool bDone = false;
@@ -45,6 +45,7 @@ const int CEngineCore::Start(const HINSTANCE _khInstance)
 	if(this->Initialize())
 	{
 		this->m_pTimer->Reset();
+		this->m_pClient->ProcessCommandLine(_kpCmdLine);
 		while(!bDone)
 		{
 			if(PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))

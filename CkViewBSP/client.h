@@ -34,12 +34,16 @@ public:
 	bool m_bDoPVS;
 	bool m_bWireframe;
 
+	std::string filename;
+
 	// Member Functions
 protected:
 	//
 
 public:
 	const bool Initialize();
+	bool ProcessCommandLine(const char* _kpCmdLine);
+	void Reload();
 	const float Update(const float _kfDeltaTick);
 	void Terminate();
 

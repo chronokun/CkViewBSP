@@ -188,6 +188,8 @@ const bool CRenderer::Initialize(const HWND _khWnd)
 	}
 	this->m_FrameNumber = 0;
 	this->m_fLastFrameTime = (float)CEngineCore::GetInstance().m_pTimer->GetElapsedTime();
+
+	m_bInitializedBufferObjects = false;
 	
 	return(true);
 }
@@ -284,12 +286,12 @@ void CRenderer::DrawSurfaces()
 		for(size_t i = 0; i < this->m_VisibleLeafs.size(); i++)
 		{
 			const size_t kByte = i/8;
-			const size_t kBit = (0x01 << i%8);
+			const size_t kBit = ((size_t)0x01 << (size_t)(i%8));
 			if((this->m_LeafVisibility[kByte] & kBit) != 0)
 			{
-				if(IsVisibleFromFrustum(i))
+				if(IsVisibleFromFrustum((int32_t)i))
 				{
-					this->m_VisibleLeafs[this->m_iVisibleLeafCount] = i;
+					this->m_VisibleLeafs[this->m_iVisibleLeafCount] = (int32_t)i;
 					this->m_iVisibleLeafCount++;
 				}
 				else
@@ -310,31 +312,14 @@ void CRenderer::DrawSurfaces()
 	else
 	{
 		m_iCurrentLeaf = 0;
-		this->m_iVisibleFaceCount = pClient->m_BSP.m_Faces.size();
+		this->m_iVisibleFaceCount = (int32_t)pClient->m_BSP.m_Faces.size();
 		for(int32_t i = 0; i < this->m_iVisibleFaceCount; i++)
 		{
 			this->m_VisibleFaces[i] = i;
 		}
-		this->m_iVisibleLeafCount = pClient->m_BSP.m_Leafs.size();
+		this->m_iVisibleLeafCount = (int32_t)pClient->m_BSP.m_Leafs.size();
 	}
 	m_iNotCulled = this->m_iVisibleLeafCount;
-
-
-	//glDisable(GL_CULL_FACE);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	/*
-	for(TSurface& rSurface : pClient->m_Surfaces)
-	{
-		if(rSurface.m_DrawObject)
-		{
-			glUniform3fv(rShader.GetVariable("uni_tangent"), 1, (float*)&rSurface.m_Tangent);
-			glUniform3fv(rShader.GetVariable("uni_bitangent"), 1, (float*)&rSurface.m_BiTangent);
-			this->m_DrawObject_Surfaces[rSurface.m_DrawObject-1].Draw();
-		}
-	}
-	*/
-	//glEnable(GL_CULL_FACE);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	glBindVertexArray(this->m_uiVAO);
 	const TQBSP& krBSP = CEngineCore::GetInstance().m_pClient->m_BSP;
@@ -350,8 +335,6 @@ void CRenderer::DrawSurfaces()
 	const GLint iPatchP = rPatchShader.GetVariable("uni_p");
 	const GLint iPatchVP = rPatchShader.GetVariable("uni_vp");
 	const GLint iPatchCamera = rPatchShader.GetVariable("uni_cameraposition");
-
-	//int iPatchesRendered = 0;
 
 	if(pClient->m_bWireframe)
 	{
@@ -547,64 +530,59 @@ void CRenderer::LoadMap()
 		Colors[i].m_fZ = rQBSP.m_Vertices[i].m_Color[2] / 255.f;
 	}
 
+	if(!m_bInitializedBufferObjects) {
+		glGenBuffers(7, m_BufferObjects);
+	}
 	// Positions
-	GLuint uiPositionsVBO = 0;
-	glGenBuffers(1, &uiPositionsVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiPositionsVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[0]);
 	glBufferData(	GL_ARRAY_BUFFER, (rQBSP.m_Vertices.size() * 3 * sizeof(GLfloat)),
 					Positions.data(), GL_STATIC_DRAW);
 
 	// TexCoords
-	GLuint uiTexCoordsVBO = 0;
-	glGenBuffers(1, &uiTexCoordsVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiTexCoordsVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[1]);
 	glBufferData(	GL_ARRAY_BUFFER, (rQBSP.m_Vertices.size() * 2 * sizeof(GLfloat)),
 					TexCoords.data(), GL_STATIC_DRAW);
 
 	// Normals
-	GLuint uiNormalsVBO = 0;
-	glGenBuffers(1, &uiNormalsVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiNormalsVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[2]);
 	glBufferData(	GL_ARRAY_BUFFER, (rQBSP.m_Vertices.size() * 3 * sizeof(GLfloat)),
 					Normals.data(), GL_STATIC_DRAW);
 
 	// Lightmap
-	GLuint uiLightmapVBO = 0;
-	glGenBuffers(1, &uiLightmapVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiLightmapVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[3]);
 	glBufferData(	GL_ARRAY_BUFFER, (rQBSP.m_Vertices.size() * 2 * sizeof(GLfloat)),
 					Lightmaps.data(), GL_STATIC_DRAW);
 
 	// Color
-	GLuint uiColorVBO = 0;
-	glGenBuffers(1, &uiColorVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiColorVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[4]);
 	glBufferData(	GL_ARRAY_BUFFER, (rQBSP.m_Vertices.size() * 3 * sizeof(GLfloat)),
 					Colors.data(), GL_STATIC_DRAW);
 
-	this->m_uiVAO = 0;
-	glGenVertexArrays(1, &this->m_uiVAO);
-	glBindVertexArray(this->m_uiVAO);
-	// Positions
-	glBindBuffer(GL_ARRAY_BUFFER, uiPositionsVBO);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(0);
-	// TexCoords
-	glBindBuffer(GL_ARRAY_BUFFER, uiTexCoordsVBO);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(1);
-	// Normals
-	glBindBuffer(GL_ARRAY_BUFFER, uiNormalsVBO);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(2);
-	// Lightmap
-	glBindBuffer(GL_ARRAY_BUFFER, uiLightmapVBO);
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(3);
-	// Color
-	glBindBuffer(GL_ARRAY_BUFFER, uiColorVBO);
-	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(4);
+	if(!m_bInitializedBufferObjects) {
+		this->m_uiVAO = 0;
+		glGenVertexArrays(1, &this->m_uiVAO);
+		glBindVertexArray(this->m_uiVAO);
+		// Positions
+		glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[0]);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(0);
+		// TexCoords
+		glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[1]);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(1);
+		// Normals
+		glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[2]);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(2);
+		// Lightmap
+		glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[3]);
+		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(3);
+		// Color
+		glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[4]);
+		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(4);
+	}
 
 	//
 	//
@@ -673,28 +651,25 @@ void CRenderer::LoadMap()
 		}
 	}
 
-	GLuint uiPatchVBO = 0;
-	glGenBuffers(1, &uiPatchVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiPatchVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[5]);
 	glBufferData(	GL_ARRAY_BUFFER, (VertexBufferData.size() * sizeof(GLint)),
 					VertexBufferData.data(), GL_STATIC_DRAW);
-	this->m_uiPatchVAO = 0;
-	glGenVertexArrays(1, &this->m_uiPatchVAO);
-	glBindVertexArray(this->m_uiPatchVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, uiPatchVBO);
-	glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
-	glEnableVertexAttribArray(0);
+	if(!m_bInitializedBufferObjects) {
+		this->m_uiPatchVAO = 0;
+		glGenVertexArrays(1, &this->m_uiPatchVAO);
+		glBindVertexArray(this->m_uiPatchVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, m_BufferObjects[5]);
+		glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glEnableVertexAttribArray(0);
+	}
 
 	//
 	//
 	//
-
-	GLuint ssbo = 0;
-	glGenBuffers(1, &ssbo);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_BufferObjects[6]);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(TPatchData)*PatchBufferData.size(), PatchBufferData.data(), GL_STATIC_COPY);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-	this->m_uiPatchBufferSSBO = ssbo;
+	this->m_uiPatchBufferSSBO = m_BufferObjects[6];
 
 	//
 
@@ -704,12 +679,12 @@ void CRenderer::LoadMap()
 	GLuint ssbo_binding_point_index = 0;
 	glShaderStorageBlockBinding(CEngineCore::GetInstance().m_pRenderer->m_Shaders.find("patch")->second.m_uiShaderProgram, block_index, ssbo_binding_point_index);
 
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo_binding_point_index, ssbo);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo_binding_point_index, m_BufferObjects[6]);
 
 	//
 
 	this->m_LightmapTextures.resize(rQBSP.m_LightMaps.size());
-	glGenTextures(this->m_LightmapTextures.size(), this->m_LightmapTextures.data());
+	glGenTextures((GLsizei)this->m_LightmapTextures.size(), this->m_LightmapTextures.data());
 	for(size_t i = 0; i < this->m_LightmapTextures.size(); i++)
 	{
 		glBindTexture(GL_TEXTURE_2D, this->m_LightmapTextures[i]);
@@ -717,6 +692,8 @@ void CRenderer::LoadMap()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	}
+	//
+	m_bInitializedBufferObjects = true;
 }
 
 int32_t FindLeaf(const TVector3f& _krPoint)
@@ -830,7 +807,7 @@ void CRenderer::FindVisibleLeafs(const int32_t _kiCurrentLeaf)
 		if(IsVisible(krQBSP.m_Leafs[_kiCurrentLeaf].m_iCluster, krQBSP.m_Leafs[i].m_iCluster))
 		{
 			const size_t kByte = i/8;
-			const size_t kBit = (0x01 << i%8);
+			const size_t kBit = ((size_t)0x01 << (size_t)(i%8));
 			this->m_LeafVisibility[kByte] |= kBit;
 		}
 	}
@@ -844,7 +821,7 @@ void CRenderer::GetLeafFaces(const int32_t _kiLeaf)
 	{
 		const int32_t f = krQBSP.m_LeafFaces[krQBSP.m_Leafs[_kiLeaf].m_iLeafFace + i].m_iFace;
 		const size_t kByte = f/8;
-		const size_t kBit = (0x01 << f%8);
+		const size_t kBit = (size_t)((size_t)0x01 << (size_t)(f%8));
 		if(!(this->m_FaceVisibility[kByte] & kBit))
 		{
 			this->m_FaceVisibility[kByte] |= kBit;

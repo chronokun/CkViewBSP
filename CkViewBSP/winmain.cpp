@@ -13,5 +13,5 @@ int WINAPI WinMain(	HINSTANCE	_hInstance,
 					LPSTR		_lpCmdLine,
 					int			_iCmdShow)
 {
-	return(CEngineCore::GetInstance().Start(_hInstance));
+	return(CEngineCore::GetInstance().Start(_hInstance, _lpCmdLine));
 }

@@ -5,6 +5,19 @@
 
 bool LoadQBSPFile(const char* _kpcFilename, TQBSP& _rQBSP)
 {
+	_rQBSP.m_Faces.clear();
+	_rQBSP.m_LeafBrushes.clear();
+	_rQBSP.m_LeafFaces.clear();
+	_rQBSP.m_Leafs.clear();
+	_rQBSP.m_LightMaps.clear();
+	_rQBSP.m_MeshVerts.clear();
+	_rQBSP.m_Nodes.clear();
+	_rQBSP.m_Planes.clear();
+	_rQBSP.m_Vertices.clear();
+	_rQBSP.m_VisData.m_iNumVecs = 0;
+	_rQBSP.m_VisData.m_iSizeVecs = 0;
+	_rQBSP.m_VisData.m_Vecs.clear();
+
 	std::ifstream file (_kpcFilename, (std::ios::binary | std::ios::in | std::ios::ate));
 
 	TFileHeader Header;
@@ -12,7 +25,6 @@ bool LoadQBSPFile(const char* _kpcFilename, TQBSP& _rQBSP)
 	if(file.is_open())
 	{
 		unsigned int uiSize = (unsigned int)file.tellg();
-		char* pcMemBlock = new char[(unsigned int)uiSize];
 		file.seekg(0, std::ios::beg);
 
 		file.read(reinterpret_cast<char*>(&Header), sizeof(Header));

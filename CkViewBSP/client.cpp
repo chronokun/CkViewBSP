@@ -23,26 +23,26 @@ const bool CClient::Initialize()
 	this->m_CameraPosition = TVector3f{0.0f, 56.0f, 0.0f};
 	this->m_CameraOrientation = IdentityQuaternion(TVector4f());
 
-	if(!LoadQBSPFile("maps/6++.bsp", this->m_BSP))
+	return(true);
+}
+
+bool CClient::ProcessCommandLine(const char* _kpCmdLine)
+{
+	if(!LoadQBSPFile(_kpCmdLine, this->m_BSP))
 	{
 		return(false);
 	}
+	this->filename = _kpCmdLine;
 
 	CEngineCore::GetInstance().m_pRenderer->LoadMap();
 
-	/*
-	size_t NextID = 1;
-	for(size_t i = 0; i < this->m_Surfaces.size(); ++i)
-	{
-		this->m_Surfaces[i].m_DrawObject = NextID;
-		CDrawObject_Surface sdo;
-		sdo.Initialize(this->m_Surfaces[i], NextID);
-		++NextID;
-		CEngineCore::GetInstance().m_pRenderer->m_DrawObject_Surfaces.push_back(sdo);
-	}
-	*/
+	return true;
+}
 
-	return(true);
+void CClient::Reload()
+{
+	LoadQBSPFile(this->filename.c_str(), this->m_BSP);
+	CEngineCore::GetInstance().m_pRenderer->LoadMap();
 }
 
 const float CClient::Update(const float _kfDeltaTick)
@@ -100,6 +100,10 @@ const float CClient::Update(const float _kfDeltaTick)
 	if(CEngineCore::GetInstance().m_pInput->m_bPresses['2'])
 	{
 		this->m_bWireframe = !this->m_bWireframe;
+	}
+	if(CEngineCore::GetInstance().m_pInput->m_bPresses['R'])
+	{
+		this->Reload();
 	}
 
 	this->m_fElapsedTime += _kfDeltaTick;

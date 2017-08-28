@@ -51,6 +51,9 @@ protected:
 	std::vector<float> m_FrameTimes;
 	size_t m_FrameNumber;
 	float m_fLastFrameTime;
+	//
+	GLuint m_BufferObjects[7];
+	bool m_bInitializedBufferObjects;
 
 public:
 	HDC m_hDC;
